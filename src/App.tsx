@@ -10,7 +10,7 @@ import { Textarea } from './components/ui/textarea';
 import { Progress } from './components/ui/progress';
 import { Upload, FileText, Download, Mail, Star, Pill, CheckCircle, AlertCircle, TrendingUp, Users, Shield, Clock, Menu, X } from 'lucide-react';
 import { blink } from './blink/client';
-import toast from 'react-hot-toast';
+import { useToast } from './hooks/use-toast';
 
 interface MissedClaim {
   drugName: string;
@@ -21,6 +21,7 @@ interface MissedClaim {
 }
 
 function App() {
+  const { toast } = useToast();
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -28,6 +29,10 @@ function App() {
   const [currentStep, setCurrentStep] = useState('');
   const [showPricing, setShowPricing] = useState(false);
   const [contactMessage, setContactMessage] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [isSubmittingContact, setIsSubmittingContact] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const mockMissedClaims: MissedClaim[] = [
     { drugName: "Atorvastatin 20mg", dispenseDate: "2024-01-15", patientRef: "PT001", reason: "No claim submitted", estimatedValue: 28 },
@@ -51,18 +56,29 @@ function App() {
       const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
       
       if (!allowedTypes.includes(fileExtension)) {
-        toast.error('Please upload a CSV, Excel, or TXT file');
+        toast({
+          title: "Invalid file type",
+          description: "Please upload a CSV, Excel, or TXT file",
+          variant: "destructive"
+        });
         return;
       }
       
       // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
-        toast.error('File size must be less than 10MB');
+        toast({
+          title: "File too large",
+          description: "File size must be less than 10MB",
+          variant: "destructive"
+        });
         return;
       }
       
       setUploadedFile(file);
-      toast.success('File uploaded successfully!');
+      toast({
+        title: "Success",
+        description: "File uploaded successfully!"
+      });
     }
   };
 
@@ -109,11 +125,49 @@ function App() {
     runStep();
   };
 
-  const handleContactSubmit = () => {
-    if (!contactMessage.trim()) return;
-    // Simulate sending message
-    alert('Thank you for your message! We\'ll get back to you within 24 hours.');
-    setContactMessage('');
+  const handleContactSubmit = async () => {
+    if (!contactMessage.trim() || !contactEmail.trim() || !contactName.trim()) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in all fields",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(contactEmail)) {
+      toast({
+        title: "Invalid email",
+        description: "Please enter a valid email address",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsSubmittingContact(true);
+    
+    try {
+      // Simulate API call - in real app, this would send to your backend
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      toast({
+        title: "Message sent!",
+        description: "Thank you for your message! We'll get back to you within 24 hours."
+      });
+      setContactMessage('');
+      setContactEmail('');
+      setContactName('');
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmittingContact(false);
+    }
   };
 
   const scrollToSection = (sectionId: string) => {
@@ -557,12 +611,25 @@ function App() {
           
           <div className="md:flex md:justify-between md:items-center">
             <div className="text-gray-400 mb-4 md:mb-0">
-              © 2024 ClarityRx. All rights reserved.
+              &copy; 2024 ClarityRx. All rights reserved.
             </div>
             
             <div className="space-y-4">
               <h4 className="font-medium">Contact Us</h4>
-              <div className="space-y-2">
+              <div className="space-y-3">
+                <Input
+                  placeholder="Your name"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-400"
+                />
+                <Input
+                  type="email"
+                  placeholder="Your email"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-400"
+                />
                 <Textarea 
                   placeholder="Your message..." 
                   value={contactMessage}
@@ -573,9 +640,16 @@ function App() {
                   variant="outline" 
                   className="w-full hover:bg-gray-700"
                   onClick={handleContactSubmit}
-                  disabled={!contactMessage.trim()}
+                  disabled={isSubmittingContact || !contactMessage.trim() || !contactEmail.trim() || !contactName.trim()}
                 >
-                  Send Message
+                  {isSubmittingContact ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Sending...
+                    </>
+                  ) : (
+                    'Send Message'
+                  )}
                 </Button>
               </div>
               <div className="text-sm text-gray-400">

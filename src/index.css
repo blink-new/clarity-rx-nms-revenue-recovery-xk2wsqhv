@@ -74,7 +74,7 @@
 }
 
 /* Custom animations */
-@keyframes fadeInUp {
+@keyframes fade-in-up {
   from {
     opacity: 0%;
     transform: translateY(30px);
@@ -87,7 +87,7 @@
 }
 
 .animate-fade-in-up {
-  animation: fadeInUp 0.6s ease-out;
+  animation: fade-in-up 0.6s ease-out;
 }
 
 /* Smooth scrolling */
