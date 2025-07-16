@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
 import { Input } from './components/ui/input';
@@ -7,7 +7,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from './components/ui/badge';
 import { Separator } from './components/ui/separator';
 import { Textarea } from './components/ui/textarea';
-import { Upload, FileText, Download, Mail, Star, Pill, CheckCircle } from 'lucide-react';
+import { Progress } from './components/ui/progress';
+import { Upload, FileText, Download, Mail, Star, Pill, CheckCircle, AlertCircle, TrendingUp, Users, Shield, Clock, Menu, X } from 'lucide-react';
+import { blink } from './blink/client';
+import toast from 'react-hot-toast';
 
 interface MissedClaim {
   drugName: string;
@@ -21,6 +24,10 @@ function App() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState('');
+  const [showPricing, setShowPricing] = useState(false);
+  const [contactMessage, setContactMessage] = useState('');
 
   const mockMissedClaims: MissedClaim[] = [
     { drugName: "Atorvastatin 20mg", dispenseDate: "2024-01-15", patientRef: "PT001", reason: "No claim submitted", estimatedValue: 28 },
@@ -39,7 +46,23 @@ function App() {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Validate file type
+      const allowedTypes = ['.csv', '.xlsx', '.xls', '.txt'];
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      
+      if (!allowedTypes.includes(fileExtension)) {
+        toast.error('Please upload a CSV, Excel, or TXT file');
+        return;
+      }
+      
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('File size must be less than 10MB');
+        return;
+      }
+      
       setUploadedFile(file);
+      toast.success('File uploaded successfully!');
     }
   };
 
@@ -47,11 +70,54 @@ function App() {
     if (!uploadedFile) return;
     
     setIsAnalyzing(true);
-    // Simulate analysis delay
-    setTimeout(() => {
-      setIsAnalyzing(false);
-      setShowResults(true);
-    }, 2000);
+    setAnalysisProgress(0);
+    setShowResults(false);
+    
+    // Simulate realistic analysis steps with progress
+    const steps = [
+      { step: 'Parsing PMR file...', duration: 500 },
+      { step: 'Loading NMS drug database...', duration: 800 },
+      { step: 'Cross-referencing medications...', duration: 1000 },
+      { step: 'Identifying missed claims...', duration: 700 },
+      { step: 'Calculating revenue impact...', duration: 500 },
+      { step: 'Generating report...', duration: 400 }
+    ];
+    
+    let currentProgress = 0;
+    let stepIndex = 0;
+    
+    const runStep = () => {
+      if (stepIndex < steps.length) {
+        setCurrentStep(steps[stepIndex].step);
+        
+        setTimeout(() => {
+          currentProgress += 100 / steps.length;
+          setAnalysisProgress(Math.min(currentProgress, 100));
+          stepIndex++;
+          runStep();
+        }, steps[stepIndex].duration);
+      } else {
+        setTimeout(() => {
+          setIsAnalyzing(false);
+          setShowResults(true);
+          setCurrentStep('');
+          setAnalysisProgress(0);
+        }, 300);
+      }
+    };
+    
+    runStep();
+  };
+
+  const handleContactSubmit = () => {
+    if (!contactMessage.trim()) return;
+    // Simulate sending message
+    alert('Thank you for your message! We\'ll get back to you within 24 hours.');
+    setContactMessage('');
+  };
+
+  const scrollToSection = (sectionId: string) => {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const testimonials = [
@@ -63,7 +129,7 @@ function App() {
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
@@ -72,7 +138,33 @@ function App() {
               </div>
               <span className="text-xl font-semibold text-gray-900">ClarityRx</span>
             </div>
-            <Button onClick={() => document.getElementById('file-upload')?.click()}>
+            
+            {/* Navigation */}
+            <nav className="hidden md:flex items-center space-x-8">
+              <button 
+                onClick={() => scrollToSection('features')}
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                Features
+              </button>
+              <button 
+                onClick={() => scrollToSection('testimonials')}
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                Reviews
+              </button>
+              <button 
+                onClick={() => scrollToSection('pricing')}
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                Pricing
+              </button>
+            </nav>
+            
+            <Button 
+              onClick={() => document.getElementById('file-upload')?.click()}
+              className="bg-gradient-to-r from-blue-600 to-violet-500 hover:from-blue-700 hover:to-violet-600"
+            >
               <Upload className="w-4 h-4 mr-2" />
               Upload CSV
             </Button>
@@ -178,6 +270,17 @@ function App() {
                   </>
                 )}
               </Button>
+
+              {/* Progress Indicator */}
+              {isAnalyzing && (
+                <div className="mt-6 space-y-4 animate-fade-in-up">
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-gray-700 mb-2">{currentStep}</div>
+                    <Progress value={analysisProgress} className="w-full" />
+                    <div className="text-xs text-gray-500 mt-1">{Math.round(analysisProgress)}% complete</div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -257,21 +360,89 @@ function App() {
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button variant="outline" className="flex-1">
+              <Button 
+                variant="outline" 
+                className="flex-1 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                onClick={() => alert('PDF report would be generated and downloaded')}
+              >
                 <Download className="w-4 h-4 mr-2" />
                 Export PDF Report
               </Button>
-              <Button variant="outline" className="flex-1">
+              <Button 
+                variant="outline" 
+                className="flex-1 hover:bg-violet-50 hover:border-violet-300 transition-colors"
+                onClick={() => alert('Report would be sent to your registered email address')}
+              >
                 <Mail className="w-4 h-4 mr-2" />
                 Send to my inbox
               </Button>
+            </div>
+
+            {/* Additional Info */}
+            <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-start space-x-3">
+                <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-blue-900 mb-1">Next Steps</h4>
+                  <p className="text-sm text-blue-800">
+                    Review each missed claim and submit to NHS BSA within the required timeframe. 
+                    Keep this report for your records and compliance documentation.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </section>
       )}
 
+      {/* Features Section */}
+      <section id="features" className="py-16 bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose ClarityRx?</h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Built specifically for UK pharmacists to maximize NHS revenue recovery with minimal effort
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="text-center group">
+              <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-violet-500 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200">
+                <TrendingUp className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Instant Revenue Recovery</h3>
+              <p className="text-gray-600 text-sm">Identify missed NMS claims in seconds, not hours</p>
+            </div>
+
+            <div className="text-center group">
+              <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-violet-500 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200">
+                <Shield className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">NHS Compliant</h3>
+              <p className="text-gray-600 text-sm">Built to NHS BSA standards and regulations</p>
+            </div>
+
+            <div className="text-center group">
+              <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-violet-500 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200">
+                <Users className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Multi-PMR Support</h3>
+              <p className="text-gray-600 text-sm">Works with EMIS, Titan, RxWeb, ProScript & more</p>
+            </div>
+
+            <div className="text-center group">
+              <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-violet-500 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200">
+                <Clock className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Save Time Daily</h3>
+              <p className="text-gray-600 text-sm">2-minute analysis vs hours of manual checking</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Testimonials */}
-      <section className="py-16 bg-gray-50">
+      <section id="testimonials" className="py-16 bg-gray-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">Trusted by UK Pharmacists</h2>
@@ -302,7 +473,7 @@ function App() {
       </section>
 
       {/* Pricing */}
-      <section className="py-16">
+      <section id="pricing" className="py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold text-gray-900 mb-4">Try It Free</h2>
           <p className="text-lg text-gray-600 mb-8">Start with a 2-week free trial. Then only £29/month.</p>
@@ -394,9 +565,22 @@ function App() {
               <div className="space-y-2">
                 <Textarea 
                   placeholder="Your message..." 
-                  className="bg-gray-800 border-gray-700 text-white"
+                  value={contactMessage}
+                  onChange={(e) => setContactMessage(e.target.value)}
+                  className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-400"
                 />
-                <Button variant="outline" className="w-full">Send Message</Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full hover:bg-gray-700"
+                  onClick={handleContactSubmit}
+                  disabled={!contactMessage.trim()}
+                >
+                  Send Message
+                </Button>
+              </div>
+              <div className="text-sm text-gray-400">
+                <p>📧 support@clarityrx.co.uk</p>
+                <p>📞 0800 123 4567</p>
               </div>
             </div>
           </div>
